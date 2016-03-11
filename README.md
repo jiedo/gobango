@@ -33,7 +33,7 @@ chessbot作为独立运行的peer启动, 与另一个chessbot互联对弈, 不�
 
 ## AI实现
 
-chessbot.py中的main函数已实现一个bot框架, 按顺序处理了通信. 留出strategy()在己方应该下棋时调用, strategy只需分析棋盘, 并返回落子位置.
+chessbot.go中的main函数已实现一个bot框架, 按顺序处理了通信. 留出strategy()在己方应该下棋时调用, strategy只需分析棋盘, 并返回落子位置.
 
 棋盘记录在二维数组中, 每个位置有3种状态: 黑/白/空, 棋盘会在通信时自动更新.
 
@@ -41,14 +41,14 @@ chessbot.py中的main函数已实现一个bot框架, 按顺序处理了通信. �
 
 可修改如下strategy函数, 实现自己的AI.
 
-    def strategy(self):
-        # 棋盘:
-        # self.board[h][w][chess.POINT_NOTE]
-        # 此demo逻辑为顺序落子
-        #
-        for h in range(chess.HEIGHT):
-            for w in range(chess.WIDTH):
-                if self.board[h][w][chess.POINT_NOTE] == chess.BLANK:
+    func strategy() {
+        // 棋盘:
+        // self.board[h][w][chess.POINT_NOTE]
+        // 此demo逻辑为顺序落子
+        //
+        for h in range(chess.HEIGHT) {
+            for w in range(chess.WIDTH) {
+                if self.board[h][w][chess.POINT_NOTE] == chess.BLANK {
                     return h, w
 
 或者重写main函数, 仅仅使用chess.Bot代码来构建更灵活AI, 只要依据回合制顺序通信即可.
@@ -56,40 +56,40 @@ chessbot.py中的main函数已实现一个bot框架, 按顺序处理了通信. �
 
 ## 运行方式
 
-chessbot.py暂时实现为通过stdin/stdout通信. chessbot.py读取stdin, 得到对方落子位置. 然后将自己落子位置输出到stdout.
+chessbot.go暂时实现为通过stdin/stdout通信. chessbot.go读取stdin, 得到对方落子位置. 然后将自己落子位置输出到stdout.
 
-    $ python -u ./chessbot.py
+    $ go run ./chessbot.go
 
 支持参数 -w , 表示选择白方, 对方将成为黑方.
 
-    $ python -u ./chessbot.py -w
+    $ go run ./chessbot.go -w
 
-对弈时, 绑定双方stdin和stdout即可. 注意必须有一方选择白方. 当一方胜利后, chessbot.py自动退出.
+对弈时, 绑定双方stdin和stdout即可. 注意必须有一方选择白方. 当一方胜利后, chessbot.go自动退出.
 
     $ mkfifo fifo
-    $ python2.7 -u ./chessbot.py -w < fifo | python2.7 -u ./chessbot.py > fifo
+    $ go run ./chessbot.go -w < fifo | go run ./chessbot.go > fifo
 
 用nc可实现远程对弈.
 
     # hostA, 选择白方, 先建立监听:
     $ mkfifo fifo
-    $ python2.7 -u ./chessbot.py -w < fifo | nc -l -p 8002 > fifo
+    $ go run ./chessbot.go -w < fifo | nc -l -p 8002 > fifo
 
     # hostB 为黑方:
     $ mkfifo fifo
-    $ python2.7 -u ./chessbot.py < fifo | nc hostA 8002 > fifo
+    $ go run ./chessbot.go < fifo | nc hostA 8002 > fifo
 
 支持参数 -v , 输出每一步棋盘.
 
-    $ python -u ./chessbot.py -v
+    $ python -u ./chessbot.go -v
 
 支持参数 -d , 输出调试错误.
 
-    $ python -u ./chessbot.py -d
+    $ python -u ./chessbot.go -d
 
-安装pygame后, chessui.py支持人机接入, 参数配置和chessbot.py相同. 提供了一个图形棋盘界面, 可人机/人人对弈.
+安装pygame后, chessui.py支持人机接入, 参数配置和chessbot.go相同. 提供了一个图形棋盘界面, 可人机/人人对弈.
 
-    python2.7 -u ./chessui.py -v < fifo | python2.7 -u ./chessbot.py -w > fifo
+    python2.7 -u ./chessui.py -v < fifo | go run ./chessbot.go -w > fifo
 
 
 
