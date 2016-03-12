@@ -3,6 +3,7 @@ package chess
 import (
     "fmt"
     "os"
+	"bufio"
     "strings"
     "errors"
     "sort"
@@ -127,13 +128,13 @@ func Chess_log(msg string, level string) {
     if level == "DEBUG" && !G_debug_info {
         return
     }
-    fmt.Fprintf(os.Stderr, msg)
+    fmt.Fprintln(os.Stderr, msg)
 }
 
 
 func Chess_operate(op string) {
     Chess_log(op, "INFO")
-    fmt.Print(op)
+    fmt.Println(op)
 }
 
 
@@ -141,6 +142,32 @@ type Point struct {
     H int
     W int
 }
+
+func Rank_by_point_count(points_score map[Point]int) PairList{
+  pl := make(PairList, len(points_score))
+  i := 0
+  for k, v := range points_score {
+    pl[i] = Pair{k, v}
+    i++
+  }
+  sort.Sort(sort.Reverse(pl))
+  return pl
+}
+
+type Pair struct {
+  Key Point
+  Value int
+}
+
+type PairList []Pair
+func (p PairList) Len() int { return len(p) }
+func (p PairList) Less(i, j int) bool { return p[i].Value < p[j].Value }
+func (p PairList) Swap(i, j int){ p[i], p[j] = p[j], p[i] }
+
+
+
+
+
 
 type Bot struct {
     started bool
@@ -157,14 +184,24 @@ type Bot struct {
     Board [HEIGHT][WIDTH]GoSide
 
     Board_leg_type [HEIGHT][WIDTH][2][LEG_INFO_N]int
-    direction_legtype_count [LEG_INFO_N]int
+    direction_legtype_count []int
 
     Board_blank_count [HEIGHT][WIDTH][2][LEG_INFO_N][4]int
     Notes []string
+
+	callback_begin Func_callback_begin
+	callback_count Func_callback_count
+	callback_end Func_callback_end
 }
 
+type Func_callback_begin func(where Direction)
+type Func_callback_count func(k uint, pt Point, where Direction, part Direction) bool
+type Func_callback_end func(where Direction) bool
 
-func (self *Bot) init_data() {
+
+func (self *Bot) Init_data() {
+    self.started = false
+
     self.win_points_num = 0
     self.My_side = WHITE_ID
     self.Your_side = BLACK_ID
@@ -174,9 +211,8 @@ func (self *Bot) init_data() {
         for w:=0; w<WIDTH; w++ {
             self.Board[h][w] = BLANK_ID
             for i:=0; i<LEG_INFO_N; i++ {
-                self.direction_legtype_count[i] = 1
-                self.Board_leg_type[h][w][0][i] = 1
-                self.Board_leg_type[h][w][1][i] = 1
+                self.Board_leg_type[h][w][int(WHITE_ID)][i] = 1
+                self.Board_leg_type[h][w][int(BLACK_ID)][i] = 1
             }
         }
     }
@@ -184,20 +220,15 @@ func (self *Bot) init_data() {
         for w:=0; w<WIDTH; w++ {
             for i:=0; i<LEG_INFO_N; i++ {
                 for j:=0; j<4; j++ {
-                    self.Board_blank_count[h][w][0][i][j] = 1
-                    self.Board_blank_count[h][w][1][i][j] = 1
+                    self.Board_blank_count[h][w][int(WHITE_ID)][i][j] = 1
+                    self.Board_blank_count[h][w][int(BLACK_ID)][i][j] = 1
                 }
             }
         }
     }
 
     self.Notes = self.Notes[:0]
-}
-
-
-func (self *Bot) __init__() {
-    self.started = false
-    self.init_data()
+	
     Chess_log("init blank score.", "DEBUG")
     self.Get_score_of_blanks_for_side(BLACK_ID, true)
     self.Get_score_of_blanks_for_side(WHITE_ID, true)
@@ -205,13 +236,15 @@ func (self *Bot) __init__() {
 }
 
 
-func (self *Bot) notes_dumps() {
+
+
+func (self *Bot) Notes_dumps() {
     Chess_log(fmt.Sprintf("Notes[%d]: %s", len(self.Notes), strings.ToLower(strings.Join(self.Notes, ""))),
         "INFO")
 }
 
 
-func (self *Bot) board_dumps() {
+func (self *Bot) Board_dumps() {
     board_separate_line := strings.Repeat("- ", WIDTH)
     Chess_log("   " + board_separate_line, "INFO")
     for i:=HEIGHT; i>0; i-- {
@@ -248,25 +281,23 @@ func (self *Bot) board_debug_dumps() {
 }
 
 
-func (self *Bot) board_loads(board_block string) (err error){
+func (self *Bot) Board_loads(board_block string) (err error){
     board_block_lines := strings.Split(board_block, "\n")
     if len(board_block_lines) < HEIGHT + 5 {
         return errors.New("board_loads: not enough lines.")
     }
 
-    sort.Sort(sort.Reverse(sort.StringSlice(board_block_lines)))
-
-    self.init_data()
+    self.Init_data()
     Chess_log("load board start.", "DEBUG")
 
     count_balance := 0
-    for height, line_side_notes := range board_block_lines[3:len(board_block_lines)-2] {
+    for height, line_side_notes := range board_block_lines[2:len(board_block_lines)-3] {
         line_parts := strings.Split(line_side_notes, "|")
-        height_label, side_notes, _ := line_parts[0], line_parts[1], line_parts[2]
+        _, side_notes, _ := line_parts[0], line_parts[1], line_parts[2]
         for i:=0; i<WIDTH; i++ {
             note := string(side_notes[i*2])
             if _, ok := NOTE_TO_ID[note]; ok {
-                self.set_board_at_point(Point{height, i}, NOTE_TO_ID[note])
+                self.set_board_at_point(Point{HEIGHT-height-1, i}, NOTE_TO_ID[note])
             } else {
                 return errors.New(fmt.Sprintf("board_loads: note '%s' is illegal.", note))
             }
@@ -295,7 +326,7 @@ func (self *Bot) board_loads(board_block string) (err error){
 }
 
 
-func (self *Bot) light_on_win_points() {
+func (self *Bot) Light_on_win_points() {
     for i, pt := range self.win_points {
         if i >= self.win_points_num {
             break
@@ -348,7 +379,7 @@ func (self *Bot) set_board_at_point(pt Point, side_note GoSide) {
 }
 
 
-func (self *Bot) put_chessman_at_point(put_side GoSide, pt Point) (err error) {
+func (self *Bot) Put_chessman_at_point(put_side GoSide, pt Point) (err error) {
     if self.Side_this_turn != put_side {
         return errors.New(fmt.Sprintf("not %s turn.", ID_TO_NOTE[put_side]))
     }
@@ -365,14 +396,23 @@ func (self *Bot) put_chessman_at_point(put_side GoSide, pt Point) (err error) {
 }
 
 
-func (self *Bot) get_point_of_chessman(get_side GoSide) (pt Point, err error) {
+func (self *Bot) Get_point_of_chessman(get_side GoSide) (pt Point, err error) {
     if self.Side_this_turn != get_side {
         Chess_log(fmt.Sprintf("not %s turn.", ID_TO_NOTE[get_side]), "DEBUG")
         return pt, errors.New("get_point_of_chessman fail.")
     }
-    var line string
-    fmt.Scanln(&line)
-    line = strings.ToUpper(line)
+
+	var line string
+	scanner := bufio.NewScanner(os.Stdin)
+	if scanner.Scan() {
+		line = strings.ToUpper(scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+        fmt.Fprintln(os.Stderr, "error:", err)
+        os.Exit(1)
+    }
+	Chess_log(fmt.Sprintf("get: %v", line), "INFO")
+	
     if line == "START" {
         if !self.started {
             self.started = true
@@ -385,17 +425,18 @@ func (self *Bot) get_point_of_chessman(get_side GoSide) (pt Point, err error) {
         return pt, errors.New("get_point_of_chessman not put.")
     }
 
-    tmp_line_split := []string{}
+    tmp_line_split := make([]string, 3)
     if len(strings.Split(line, " ")) == 2 {
         tmp_line_split = strings.Split(line, " ")
     } else {
         tmp_line_split = strings.SplitN(line, " ", 2)
     }
+	Chess_log(fmt.Sprintf("here: %v", tmp_line_split), "INFO")
     op_token, point_token := tmp_line_split[0], tmp_line_split[1]
     point_w_s, point_h_s := point_token[0], point_token[1:]
     if point_h, err := strconv.Atoi(point_h_s); err == nil {
         point_w := atoid(string(point_w_s))
-        pt = Point{point_h, point_w}
+        pt = Point{point_h-1, point_w}
     } else {
         return pt, errors.New("get_point_of_chessman can't parse.")
     }
@@ -518,6 +559,7 @@ func (self *Bot) detect_positions_around_point(test_pt Point, test_side GoSide) 
 
 
 func (self *Bot) callback_begin_winner(where Direction) {
+	self.win_points_num = 0	
     self.win_points[self.win_points_num] = self.center_point
     self.win_points_num++
 }
@@ -535,7 +577,7 @@ func (self *Bot) callback_end_winner(where Direction) bool{
     }
     return false
 }
-func (self *Bot) is_winner(test_side GoSide) bool{
+func (self *Bot) Is_winner(test_side GoSide) bool{
     self.callback_count = self.callback_count_winner
     self.callback_end = self.callback_end_winner
     self.callback_begin = self.callback_begin_winner
@@ -554,12 +596,11 @@ func (self *Bot) is_winner(test_side GoSide) bool{
 }
 
 
-func (self *Bot) win_test(pt Point, test_side GoSide) bool{
+func (self *Bot) Win_test(pt Point, test_side GoSide) bool{
     self.callback_count = self.callback_count_winner
     self.callback_end = self.callback_end_winner
     self.callback_begin = self.callback_begin_winner
 
-    (pt) = pt
     self.set_board_at_point(pt, test_side)
     if self.detect_positions_around_point(pt, test_side) {
         self.set_board_at_point(pt, BLANK_ID)
@@ -713,15 +754,15 @@ func (self *Bot) callback_end_update_blank_score_after_remove(where Direction) b
 }
 
 
-func (self *Bot) callback_begin(where Direction) {
-    return
-}
-func (self *Bot) callback_count(k uint, pt Point, where Direction, part Direction) bool{
-    return false
-}
-func (self *Bot) callback_end(where Direction) bool{
-    return false
-}
+// func (self *Bot) callback_begin(where Direction) {
+//     return
+// }
+// func (self *Bot) callback_count(k uint, pt Point, where Direction, part Direction) bool{
+//     return false
+// }
+// func (self *Bot) callback_end(where Direction) bool{
+//     return false
+// }
 
 
 func (self *Bot) update_remove_around_point(pt Point) {
@@ -740,7 +781,7 @@ func (self *Bot) update_put_around_point(pt Point, test_side GoSide) {
 }
 
 
-func (self *Bot) Get_score_of_blanks_for_side(test_side GoSide, is_dup_enforce bool) map[Point]int {
+func (self *Bot) Get_score_of_blanks_for_side(test_side GoSide, is_dup_enforce bool) PairList {
     // test_side的每一个棋子, 对它米子型中心WIN_NUM范围的空白的位置贡献记分
     // 返回所有的空白位置坐标和对应的累计记分, pair
 
@@ -752,9 +793,9 @@ func (self *Bot) Get_score_of_blanks_for_side(test_side GoSide, is_dup_enforce b
             if self.get_board_at_point(pt) != BLANK_ID {
                 continue
             }
-            self.direction_legtype_count = self.Board_leg_type[pt.H][pt.W][test_side]
+            self.direction_legtype_count = self.Board_leg_type[pt.H][pt.W][test_side][:]
 
-            Chess_log(fmt.Sprintf("%s GET SCORE[%s]: %s", ID_TO_NOTE[test_side], Get_label_of_point(pt),
+            Chess_log(fmt.Sprintf("%s GET SCORE[%s]: %v", ID_TO_NOTE[test_side], Get_label_of_point(pt),
                 self.direction_legtype_count), "DEBUG")
 
             if self.direction_legtype_count[POINT_NEED_UPDATE] == 1 {
@@ -769,38 +810,36 @@ func (self *Bot) Get_score_of_blanks_for_side(test_side GoSide, is_dup_enforce b
                 self.detect_positions_around_point(pt, test_side)
 
                 self.update_total_score(pt, test_side)
-                Chess_log(fmt.Sprintf("%s UPDATE SCORE[%s]: %s", ID_TO_NOTE[test_side], Get_label_of_point(pt),
+                Chess_log(fmt.Sprintf("%s UPDATE SCORE[%s]: %v", ID_TO_NOTE[test_side], Get_label_of_point(pt),
                     self.direction_legtype_count), "DEBUG")
             }
+			blank_score := 0
             if is_dup_enforce {
                 blank_score = self.direction_legtype_count[LEG_INFO_IDX_DUP_SUM_SCORE]
             } else {
                 blank_score = self.direction_legtype_count[LEG_INFO_IDX_SUM_SCORE]
             }
-            if blank_score {
+            if blank_score > 0 {
                 all_my_blank_points_count[pt] = blank_score
             }
         }
     }
 
-    return all_my_blank_points_count
-
-    // if len(all_my_blank_points_count) == 0 {
-    //     return []
-    // }
-    // // 返回所有的空白位置坐标和对应的记分数 pair
-    // all_my_blank_points_count_pair = all_my_blank_points_count.items()
-    // all_my_blank_points_count_pair.sort(key=lambda x:x[1])
-    // all_my_blank_points_count_pair.reverse()
-
-    // Chess_log(fmt.Sprintf("%s Score: %s", ID_TO_NOTE[test_side],
-    //     ", ".join(["%s:%d" % (Get_label_of_point(Point{h, w}), count)
-    //         for Point{h, w}, count := range all_my_blank_points_count_pair if count >= 0])), "DEBUG")
-    // return all_my_blank_points_count_pair
+	all_my_blank_points_count_pair := Rank_by_point_count(all_my_blank_points_count)
+	if G_debug_info {
+		tmp_labels := []string{}
+		for _, ppair := range all_my_blank_points_count_pair {
+			if ppair.Value > 0 {
+				tmp_labels = append(tmp_labels, fmt.Sprintf("%s:%d", Get_label_of_point(ppair.Key), ppair.Value))
+			}
+		}
+		Chess_log(fmt.Sprintf("%s Score: %s", ID_TO_NOTE[test_side], strings.Join(tmp_labels, ", ")), "DEBUG")
+	}
+    return all_my_blank_points_count_pair
 }
 
 
-func (self *Bot) Is_a_good_choice(choice_pt Point, my_side GoSide, your_side GoSide, max_level int) {
+func (self *Bot) Is_a_good_choice(choice_pt Point, my_side GoSide, your_side GoSide, max_level int) bool{
     // todo: 层序遍历, 最高得分先检查
     if max_level == 0 {
         return false
@@ -811,17 +850,16 @@ func (self *Bot) Is_a_good_choice(choice_pt Point, my_side GoSide, your_side GoS
     Chess_log(fmt.Sprintf("%s TEST GOOD CHOICE[%d]: %s", ID_TO_NOTE[my_side], max_level,
         Get_label_of_point(choice_pt)), "DEBUG")
 
-    is_dup_enforce = true
-    all_my_blank_points_count_pair := self.Get_score_of_blanks_for_side(my_side,
-                                                                       is_dup_enforce)
-
-    count_win_point = 0
-    for my_pt, count := range all_my_blank_points_count_pair {
+    is_dup_enforce := true
+    all_my_blank_points_count_pair := self.Get_score_of_blanks_for_side(my_side, is_dup_enforce)
+    count_win_point := 0
+    for _, ppair := range all_my_blank_points_count_pair {
+		my_pt, count := ppair.Key, ppair.Value		
         // 先扫一遍有没有多处直接胜利的, count<4的点不可能胜利
         if count < 4 {
             continue
         }
-        if self.win_test(my_pt, my_side) {
+        if self.Win_test(my_pt, my_side) {
             count_win_point += 1
             if count_win_point > 1 {
                 self.update_remove_around_point(choice_pt)
@@ -831,21 +869,29 @@ func (self *Bot) Is_a_good_choice(choice_pt Point, my_side GoSide, your_side GoS
         }
     }
     tested_not_good_pt := map[Point]bool{}
-    for my_pt, count := range all_my_blank_points_count_pair {
-        tested_not_good_pt[my_pt] = true
-        if !self.Is_a_bad_choice(my_pt, your_side, my_side, max_level) {
+    for _, ppair := range all_my_blank_points_count_pair {
+		my_pt, count := ppair.Key, ppair.Value		
+        if count < 1 {
+            continue
+        }
+		tested_not_good_pt[my_pt] = true
+        if is_bad := self.Is_a_bad_choice(my_pt, your_side, my_side, max_level); !is_bad {
             self.update_remove_around_point(choice_pt)
             self.set_board_at_point(choice_pt, BLANK_ID)
             return false
         }
     }
     is_dup_enforce = true
-    all_your_blank_points_count_pair = self.Get_score_of_blanks_for_side(your_side, is_dup_enforce)
-    for your_pt, count := range all_your_blank_points_count_pair {
+    all_your_blank_points_count_pair := self.Get_score_of_blanks_for_side(your_side, is_dup_enforce)
+    for _, ppair := range all_your_blank_points_count_pair {
+		your_pt, count := ppair.Key, ppair.Value		
+        if count < 1 {
+            continue
+        }
         if tested_not_good_pt[your_pt] {
             continue
         }
-        if !self.Is_a_bad_choice(your_pt, your_side, my_side, max_level) {
+        if is_bad := self.Is_a_bad_choice(your_pt, your_side, my_side, max_level); !is_bad {
             Chess_log(fmt.Sprintf("%s GET BAD CHOICE[%d]: %s",
                 ID_TO_NOTE[your_side], max_level-1,
                 Get_label_of_point(your_pt)), "DEBUG")
@@ -861,7 +907,7 @@ func (self *Bot) Is_a_good_choice(choice_pt Point, my_side GoSide, your_side GoS
 }
 
 
-func (self *Bot) Is_a_bad_choice(choice_pt Point, my_side GoSide, your_side GoSide, max_level int) {
+func (self *Bot) Is_a_bad_choice(choice_pt Point, my_side GoSide, your_side GoSide, max_level int) bool{
     // todo: 层序遍历, 最高得分先检查
     if max_level == 0 {
         return false
@@ -872,13 +918,13 @@ func (self *Bot) Is_a_bad_choice(choice_pt Point, my_side GoSide, your_side GoSi
     Chess_log(fmt.Sprintf("%s TEST BAD CHOICE[%d]: %s", ID_TO_NOTE[my_side], max_level,
         Get_label_of_point(choice_pt)), "DEBUG")
 
-    is_dup_enforce = true
-    all_your_blank_points_count_pair = self.Get_score_of_blanks_for_side(your_side,
-                                                                         is_dup_enforce)
-    for your_pt, count := range all_your_blank_points_count_pair {
+    is_dup_enforce := true
+    all_your_blank_points_count_pair := self.Get_score_of_blanks_for_side(your_side, is_dup_enforce)
+    for _, ppair := range all_your_blank_points_count_pair {
+		your_pt, count := ppair.Key, ppair.Value		
         // 先扫一遍有没有直接胜利的, count<4的点不可能胜利
         if count >= 4 {
-            if self.win_test(your_pt, your_side) {
+            if self.Win_test(your_pt, your_side) {
                 self.update_remove_around_point(choice_pt)
                 self.set_board_at_point(choice_pt, BLANK_ID)
                 return true
@@ -886,7 +932,8 @@ func (self *Bot) Is_a_bad_choice(choice_pt Point, my_side GoSide, your_side GoSi
         }
     }
 
-    for your_pt, count := range all_your_blank_points_count_pair {
+    for _, ppair := range all_your_blank_points_count_pair {
+		your_pt, count := ppair.Key, ppair.Value		
         if count > 2 {
             // tofix: 不应该忽视count==1的点, 但为了减少计算
             if self.Is_a_good_choice(your_pt, your_side, my_side, max_level-1) {
@@ -902,15 +949,15 @@ func (self *Bot) Is_a_bad_choice(choice_pt Point, my_side GoSide, your_side GoSi
     }
 
     is_dup_enforce = true
-    all_my_blank_points_count_pair = self.Get_score_of_blanks_for_side(my_side,
-                                                                       is_dup_enforce)
-    for my_pt, count := range all_my_blank_points_count_pair {
+    all_my_blank_points_count_pair := self.Get_score_of_blanks_for_side(my_side, is_dup_enforce)
+    for _, ppair := range all_my_blank_points_count_pair {
+		my_pt, count := ppair.Key, ppair.Value		
         if count > 2 {
             // tofix: 不应该忽视count==1的点, 但为了减少计算
             if self.Is_a_good_choice(my_pt, your_side, my_side, max_level-1) {
                 Chess_log(fmt.Sprintf("%s GET GOOD CHOICE[%d]: %s",
                     ID_TO_NOTE[your_side], max_level-1,
-                    Get_label_of_point(your_pt)), "DEBUG")
+                    Get_label_of_point(my_pt)), "DEBUG")
 
                 self.update_remove_around_point(choice_pt)
                 self.set_board_at_point(choice_pt, BLANK_ID)

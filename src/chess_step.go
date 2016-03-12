@@ -1,25 +1,19 @@
 package main
 
 
-import "testing"
-import "chess"
+import (
+	"chess"
+	"chessbot"	
+)
 
-func TestLoad(t *testing.T) {
-    // 默认实现成回调strategy()模式,
+func main() {
+    // 默认实现成回调strtaegy()模式,
     // 但可以实现成更复杂模式, 符合bot通信协议即可
+    chess.G_debug_info = true
 
-    show_verbose = false
-    chess.g_debug_info = false
-    if len(sys.argv) >= 2 {
-        if "-v" in sys.argv {
-            show_verbose = true
-        }
-        if "-d" in sys.argv {
-            chess.g_debug_info = true
-        }
-    }
-
-    board_block = """
+	bot := chess.Bot{}
+	bot.Init_data()
+    board_block := `
    - - - - - - - - - - - - - - -
 15|. . . . . . . . . . . . . . .|
 14|. . . . . . . . . . . . . . .|
@@ -38,9 +32,9 @@ func TestLoad(t *testing.T) {
  1|. . . . . . . . . . . . . . .|
    - - - - - - - - - - - - - - -
    A B C D E F G H I J K L M N O
-"""
+`
 
-    board_block = """
+    board_block = `
    - - - - - - - - - - - - - - -
 15|. . . . . . . . . . . . . . .|
 14|. . . . . . . . . . . . . . .|
@@ -59,19 +53,18 @@ func TestLoad(t *testing.T) {
  1|. . . . . . . . . . . . . . .|
    - - - - - - - - - - - - - - -
    A B C D E F G H I J K L M N O
-"""
+`
 
-    bot.board_loads(board_block)
-    bot.board_dumps()
-    // h, w = strategy4(bot, 0, true)
+    bot.Board_loads(board_block)
+    bot.Board_dumps()
 
-    // for pt, count in all_my_blank_points_count_pair {
-    //     print bot.get_label_of_point(pt[0], pt[1]), count
+	max_level_good := 3
+	max_level_bad := 3
 
-    h, w = strategy6(bot, 0, True,
-                     max_level_good = 4,
-                     max_level_bad = 5)
+    pt := chessbot.Strategy6(&bot, 0, true,
+                     max_level_good,
+                     max_level_bad)
 
-    bot.put_chessman_at_point(bot.side_this_turn, h, w)
-    bot.board_dumps()
+    bot.Put_chessman_at_point(bot.Side_this_turn, pt)
+    bot.Board_dumps()
 }
