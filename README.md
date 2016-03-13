@@ -33,7 +33,7 @@ chessbot作为独立运行的peer启动, 与另一个chessbot互联对弈, 不�
 
 ## AI实现
 
-chessbot.go中的main函数已实现一个bot框架, 按顺序处理了通信. 留出strategy()在己方应该下棋时调用, strategy只需分析棋盘, 并返回落子位置.
+chessrun中的main函数已实现一个bot框架, 按顺序处理了通信. 留出strategy()在己方应该下棋时调用, strategy只需分析棋盘, 并返回落子位置.
 
 棋盘记录在二维数组中, 每个位置有3种状态: 黑/白/空, 棋盘会在通信时自动更新.
 
@@ -56,41 +56,36 @@ chessbot.go中的main函数已实现一个bot框架, 按顺序处理了通信. �
 
 ## 运行方式
 
-chessbot.go暂时实现为通过stdin/stdout通信. chessbot.go读取stdin, 得到对方落子位置. 然后将自己落子位置输出到stdout.
+chessrun暂时实现为通过stdin/stdout通信. chessrun读取stdin, 得到对方落子位置. 然后将自己落子位置输出到stdout.
 
-    $ go run ./chessbot.go
+    $ ./chessrun
 
 支持参数 -w , 表示选择白方, 对方将成为黑方.
 
-    $ go run ./chessbot.go -w
+    $ ./chessrun -w
 
-对弈时, 绑定双方stdin和stdout即可. 注意必须有一方选择白方. 当一方胜利后, chessbot.go自动退出.
+对弈时, 绑定双方stdin和stdout即可. 注意必须有一方选择白方. 当一方胜利后, chessrun自动退出.
 
     $ mkfifo fifo
-    $ go run ./chessbot.go -w < fifo | go run ./chessbot.go > fifo
+    $ ./chessrun -w < fifo | ./chessrun > fifo
 
 用nc可实现远程对弈.
 
     # hostA, 选择白方, 先建立监听:
     $ mkfifo fifo
-    $ go run ./chessbot.go -w < fifo | nc -l -p 8002 > fifo
+    $ ./chessrun -w < fifo | nc -l -p 8002 > fifo
 
     # hostB 为黑方:
     $ mkfifo fifo
-    $ go run ./chessbot.go < fifo | nc hostA 8002 > fifo
+    $ ./chessrun < fifo | nc hostA 8002 > fifo
 
 支持参数 -v , 输出每一步棋盘.
 
-    $ python -u ./chessbot.go -v
+    $ ./chessrun -v
 
 支持参数 -d , 输出调试错误.
 
-    $ python -u ./chessbot.go -d
-
-安装pygame后, chessui.py支持人机接入, 参数配置和chessbot.go相同. 提供了一个图形棋盘界面, 可人机/人人对弈.
-
-    python2.7 -u ./chessui.py -v < fifo | go run ./chessbot.go -w > fifo
-
+    $ ./chessrun -d
 
 
 ## 结果展示
