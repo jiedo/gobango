@@ -228,11 +228,6 @@ func (self *Bot) Init_data() {
     }
 
     self.Notes = self.Notes[:0]
-	
-    Chess_log("init blank score.", "DEBUG")
-    self.Get_score_of_blanks_for_side(BLACK_ID, true)
-    self.Get_score_of_blanks_for_side(WHITE_ID, true)
-    Chess_log("init ok.", "DEBUG")
 }
 
 
@@ -795,10 +790,12 @@ func (self *Bot) Get_score_of_blanks_for_side(test_side GoSide, is_dup_enforce b
             }
             self.direction_legtype_count = self.Board_leg_type[pt.H][pt.W][test_side][:]
 
-            Chess_log(fmt.Sprintf("%s GET SCORE[%s]: %v", ID_TO_NOTE[test_side], Get_label_of_point(pt),
-                self.direction_legtype_count), "DEBUG")
-
-            if self.direction_legtype_count[POINT_NEED_UPDATE] == 1 {
+            if self.direction_legtype_count[POINT_NEED_UPDATE] == 0 {
+				if self.direction_legtype_count[LEG_INFO_IDX_SUM_SCORE] > 0	{
+					Chess_log(fmt.Sprintf("%s GET SCORE[%s]: %v", ID_TO_NOTE[test_side], Get_label_of_point(pt),
+						self.direction_legtype_count), "DEBUG")
+				}
+			} else {
                 for i:=0; i<LEG_INFO_N; i++ {
                     self.direction_legtype_count[i] = 1
                 }

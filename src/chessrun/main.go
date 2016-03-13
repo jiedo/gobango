@@ -1,5 +1,6 @@
 package main
 
+
 import (
     "fmt"
     "chess"
@@ -7,7 +8,6 @@ import (
 	"time"
     "os"
 )
-
 
 func string_in(a string, list []string) bool {
     for _, b := range list {
@@ -38,7 +38,12 @@ func main() {
     }
 
 	bot := chess.Bot{}
-    bot.Init_data()	
+    bot.Init_data()
+    chess.Chess_log("init blank score.", "DEBUG")
+    bot.Get_score_of_blanks_for_side(chess.BLACK_ID, true)
+    bot.Get_score_of_blanks_for_side(chess.WHITE_ID, true)
+    chess.Chess_log("init ok.", "DEBUG")
+	
     for {
         // 首先读取对方的落子位置, 并写入棋盘
         for ;bot.Side_this_turn == bot.Your_side; {
