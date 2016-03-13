@@ -165,12 +165,8 @@ func (p PairList) Less(i, j int) bool { return p[i].Value < p[j].Value }
 func (p PairList) Swap(i, j int){ p[i], p[j] = p[j], p[i] }
 
 
-
-
-
-
 type Bot struct {
-    started bool
+    Started bool
     win_points [HEIGHT]Point
     win_points_num int
     center_point Point
@@ -200,7 +196,7 @@ type Func_callback_end func(where Direction) bool
 
 
 func (self *Bot) Init_data() {
-    self.started = false
+    self.Started = false
 
     self.win_points_num = 0
     self.My_side = WHITE_ID
@@ -288,15 +284,16 @@ func (self *Bot) board_debug_dumps() {
 
 func (self *Bot) Board_loads(board_block string) (err error){
     board_block_lines := strings.Split(board_block, "\n")
-    if len(board_block_lines) < HEIGHT + 5 {
+    if len(board_block_lines) < HEIGHT + 3 {
         return errors.New("board_loads: not enough lines.")
     }
 
     self.Init_data()
+    self.Started = true	
     Chess_log("load board start.", "DEBUG")
 
     count_balance := 0
-    for height, line_side_notes := range board_block_lines[2:len(board_block_lines)-3] {
+    for height, line_side_notes := range board_block_lines[1:len(board_block_lines)-2] {
         line_parts := strings.Split(line_side_notes, "|")
         _, side_notes, _ := line_parts[0], line_parts[1], line_parts[2]
         for i:=0; i<WIDTH; i++ {
@@ -419,8 +416,8 @@ func (self *Bot) Get_point_of_chessman(get_side GoSide) (pt Point, err error) {
 	Chess_log(fmt.Sprintf("get: %v", line), "INFO")
 	
     if line == "START" {
-        if !self.started {
-            self.started = true
+        if !self.Started {
+            self.Started = true
             self.swap_user_side()
             self.Side_this_turn = self.My_side
         }
@@ -446,7 +443,7 @@ func (self *Bot) Get_point_of_chessman(get_side GoSide) (pt Point, err error) {
         return pt, errors.New("get_point_of_chessman can't parse.")
     }
     if op_token == OP_PUT && self.can_put_at_point(pt) {
-        self.started = true
+        self.Started = true
         self.set_board_at_point(pt, self.Side_this_turn)
         self.update_put_around_point(pt, self.Side_this_turn)
         self.Notes = append(self.Notes, Get_label_of_point(pt))
@@ -848,7 +845,7 @@ func (self *Bot) Get_score_of_blanks_for_side(test_side GoSide, is_dup_enforce b
 
 func (self *Bot) Is_a_good_choice(choice_pt Point, my_side GoSide, your_side GoSide, max_level int) bool{
     // todo: 层序遍历, 最高得分先检查
-    if max_level == 0 {
+    if  !self.Started || max_level == 0 {
         return false
     }
 
@@ -916,7 +913,7 @@ func (self *Bot) Is_a_good_choice(choice_pt Point, my_side GoSide, your_side GoS
 
 func (self *Bot) Is_a_bad_choice(choice_pt Point, my_side GoSide, your_side GoSide, max_level int) bool{
     // todo: 层序遍历, 最高得分先检查
-    if max_level == 0 {
+    if !self.Started || max_level == 0 {
         return false
     }
 
