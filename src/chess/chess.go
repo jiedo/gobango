@@ -413,7 +413,6 @@ func (self *Bot) Get_point_of_chessman(get_side GoSide) (pt Point, err error) {
         fmt.Fprintln(os.Stderr, "error:", err)
         os.Exit(1)
     }
-	Chess_log(fmt.Sprintf("get: %v", line), "INFO")
 	
     if line == "START" {
         if !self.Started {
@@ -431,16 +430,15 @@ func (self *Bot) Get_point_of_chessman(get_side GoSide) (pt Point, err error) {
     if len(strings.Split(line, " ")) == 2 {
         tmp_line_split = strings.Split(line, " ")
     } else {
-        tmp_line_split = strings.SplitN(line, " ", 2)
+        tmp_line_split = strings.SplitN(line, " ", 3)
     }
-	Chess_log(fmt.Sprintf("here: %v", tmp_line_split), "INFO")
     op_token, point_token := tmp_line_split[0], tmp_line_split[1]
     point_w_s, point_h_s := point_token[0], point_token[1:]
     if point_h, err := strconv.Atoi(point_h_s); err == nil {
         point_w := atoid(string(point_w_s))
         pt = Point{point_h-1, point_w}
     } else {
-        return pt, errors.New("get_point_of_chessman can't parse.")
+        return pt, errors.New(fmt.Sprintf("get_point_of_chessman can't parse: %s", point_h_s))
     }
     if op_token == OP_PUT && self.can_put_at_point(pt) {
         self.Started = true

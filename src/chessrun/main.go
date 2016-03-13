@@ -49,6 +49,7 @@ func main() {
         for ;bot.Side_this_turn == bot.Your_side; {
             _, err := bot.Get_point_of_chessman(bot.Your_side)
 			if err != nil {
+				chess.Chess_log(fmt.Sprintf("error: %s", err), "INFO")				
 				continue
 			}
 		}
