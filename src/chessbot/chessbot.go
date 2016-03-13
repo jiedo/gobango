@@ -3,6 +3,7 @@ package chessbot
 
 import (
     "fmt"
+	"time"
     "chess"
     "math/rand"
 )
@@ -83,7 +84,7 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
     }
 
 	all_blank_points_count_pair := chess.Rank_by_point_count(all_blank_points_count)	
-    // make a batter choice
+	// test if win
     for _, ppair := range all_blank_points_count_pair {
 		pt, count := ppair.Key, ppair.Value
         if count < 4 {
@@ -93,22 +94,13 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
             return pt
         }
     }
-    // make a batter choice
-	for level_good:=1; level_good<max_level_good; level_good++ {		
-		for _, ppair := range all_blank_points_count_pair {
-			pt, _ := ppair.Key, ppair.Value
-            if self.Is_a_good_choice(pt, self.My_side, self.Your_side, level_good) {
-                chess.Chess_log(fmt.Sprintf("%s GOOD at: %s", chess.ID_TO_NOTE[self.My_side],
-                    chess.Get_label_of_point(pt)), "INFO")
-                return pt
-            }
-        }
-    }
+
+	start_bad_time := time.Now().UnixNano()	
+	chess.Chess_log(fmt.Sprintf("try to avoid a bad choice from: %d", len(all_blank_points_count_pair)), "INFO")
     blank_points_not_bad := make(map[chess.Point]int)
     max_deep_bad_point_pt := chess.Point{0, 0}
     max_deep_bad_point_count := 0
     max_deep_bad_point_level := 0
-    // don't make a bad choice
 	for _, ppair := range all_blank_points_count_pair {
 		pt, count := ppair.Key, ppair.Value		
         is_bad := false
@@ -131,10 +123,20 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
             }
         }
         if ! is_bad {
+			// make a batter choice				
             blank_points_not_bad[pt] = count
+			for level_good:=1; level_good<max_level_good; level_good++ {		
+				if self.Is_a_good_choice(pt, self.My_side, self.Your_side, level_good) {
+					chess.Chess_log(fmt.Sprintf("%s GOOD at: %s", chess.ID_TO_NOTE[self.My_side],
+						chess.Get_label_of_point(pt)), "INFO")
+					return pt
+				}
+			}
         }
     }
-	
+	finish_bad_time := time.Now().UnixNano()
+	chess.Chess_log(fmt.Sprintf("time consume: %.2f", float64(finish_bad_time - start_bad_time)/1000000000), "INFO")
+
 	if len(blank_points_not_bad) > 0 {
 		blank_points_not_bad_pair := chess.Rank_by_point_count(blank_points_not_bad)		
 		// to fix get max

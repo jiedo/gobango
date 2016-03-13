@@ -26,9 +26,8 @@ func main() {
         }
     }
 
-	bot := chess.Bot{}
-	bot.Init_data()
     board_block := ""
+	bot := chess.Bot{}
 	
     board_block = `
    - - - - - - - - - - - - - - -
@@ -76,8 +75,8 @@ func main() {
     bot.Board_loads(board_block)
     bot.Board_dumps()
 
-	max_level_good := 4
-	max_level_bad := 4
+	max_level_good := 5
+	max_level_bad := 5
     pt := chessbot.Strategy6(&bot, 0, true,
 		max_level_good,
 		max_level_bad)

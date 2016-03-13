@@ -239,23 +239,33 @@ func (self *Bot) Notes_dumps() {
 }
 
 
-func (self *Bot) Board_dumps() {
+func (self *Bot) Board_string_block() string{
+	var board_block_lines []string
+	
     board_separate_line := strings.Repeat("- ", WIDTH)
-    Chess_log("   " + board_separate_line, "INFO")
+	board_block_lines = append(board_block_lines, "   " + board_separate_line)
+	
     for i:=HEIGHT; i>0; i-- {
         var tmp_string []string
         for _, note_info := range self.Board[i-1] {
             tmp_string = append(tmp_string, ID_TO_NOTE[note_info])
         }
-        Chess_log(fmt.Sprintf("%2d|%s|", i, strings.Join(tmp_string, " ")), "INFO")
+		board_block_lines = append(board_block_lines, fmt.Sprintf("%2d|%s|", i, strings.Join(tmp_string, " ")))		
     }
-    Chess_log("   " + board_separate_line, "INFO")
-
+	board_block_lines = append(board_block_lines, "   " + board_separate_line)	
+	
     var tmp_labels []string
     for i:=0; i<WIDTH; i++ {
         tmp_labels = append(tmp_labels, idtoa(i))
     }
-    Chess_log("   " + strings.Join(tmp_labels, " "), "INFO")
+	board_block_lines = append(board_block_lines, "   " + strings.Join(tmp_labels, " "))
+
+	return strings.Join(board_block_lines, "\n")
+}
+
+
+func (self *Bot) Board_dumps() {
+	Chess_log(self.Board_string_block(), "INFO")
 }
 
 
