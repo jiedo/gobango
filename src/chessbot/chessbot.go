@@ -5,6 +5,7 @@ import (
     "fmt"
 	"time"
 	"sync"
+    "runtime"
     "chess"
     "math/rand"
 )
@@ -15,8 +16,8 @@ func Strategy(self *chess.Bot) chess.Point{
     // 测试AI
 
 	max_level_good := 3
-	max_level_bad := 3		
-	
+	max_level_bad := 3
+
     if self.My_side == chess.BLACK_ID {
         // return strategy4(self, 0, true)
         return Strategy6(self, 0, true,
@@ -24,8 +25,8 @@ func Strategy(self *chess.Bot) chess.Point{
                          max_level_bad)
     } else {
         // return strategy4(self, 0, true)
-		max_level_good = 3
-		max_level_bad = 3		
+		max_level_good = 4
+		max_level_bad = 4
         return Strategy6(self, 0, true,
             max_level_good,
             max_level_bad)
@@ -48,7 +49,7 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
     //
     all_my_blank_points_count_pair := self.Get_score_of_blanks_for_side(self.My_side, is_dup_enforce)
     for _, ppair := range all_my_blank_points_count_pair {
-		pt, count := ppair.Key, ppair.Value		
+		pt, count := ppair.Key, ppair.Value
 		if count > 7 {
             if self.Win_test(pt, self.My_side) {
                 return pt
@@ -57,7 +58,7 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
     }
     all_your_blank_points_count_pair := self.Get_score_of_blanks_for_side(self.Your_side, is_dup_enforce)
     for _, ppair := range all_your_blank_points_count_pair {
-		pt, count := ppair.Key, ppair.Value		
+		pt, count := ppair.Key, ppair.Value
         if count > 7 {
             if self.Win_test(pt, self.Your_side) {
                 return pt
@@ -66,11 +67,11 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
     }
     all_blank_points_count := make(map[chess.Point]int)
     for _, ppair := range all_your_blank_points_count_pair {
-		pt, count := ppair.Key, ppair.Value		
+		pt, count := ppair.Key, ppair.Value
 		all_blank_points_count[pt] = count + defence_level
     }
     for _, ppair := range all_my_blank_points_count_pair {
-		pt, count := ppair.Key, ppair.Value		
+		pt, count := ppair.Key, ppair.Value
 		if count_tmp, ok := all_blank_points_count[pt]; ok {
 			if count_tmp > count {
 				all_blank_points_count[pt] = count_tmp
@@ -80,7 +81,7 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
 		}
     }
 
-	all_blank_points_count_pair := chess.Rank_by_point_count(all_blank_points_count)	
+	all_blank_points_count_pair := chess.Rank_by_point_count(all_blank_points_count)
 	// test if win
     for _, ppair := range all_blank_points_count_pair {
 		pt, count := ppair.Key, ppair.Value
@@ -92,27 +93,40 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
         }
     }
 
-	start_bad_time := time.Now().UnixNano()	
+	start_bad_time := time.Now().UnixNano()
 	chess.Chess_log(fmt.Sprintf("try to avoid a bad choice from: %d", len(all_blank_points_count_pair)), "INFO")
 
 	board_block := self.Board_string_block()
 	chan_bots := make(chan *chess.Bot, len(all_blank_points_count_pair))
 
-	has_not_bad_point := false	
+    chan_bots_limit := make(chan struct{}, runtime.NumCPU())
+
+	has_not_bad_point := false
 	chan_not_bad_points := make(chan chess.Pair, len(all_blank_points_count_pair))
 
-	has_bad_point := false	
+	has_bad_point := false
 	chan_bad_points := make(chan chess.Pair, len(all_blank_points_count_pair))
-	
+
 	has_good_point := false
 	the_good_point := chess.Point{0, 0}
 	chan_good_points := make(chan chess.Point, len(all_blank_points_count_pair))
 
+	// manager
+	go func() {
+		the_good_point, has_good_point = <-chan_good_points
+		for bot := range chan_bots {
+			bot.Started = false
+		}
+	}()
 	// worker
     var work_clear sync.WaitGroup
 	for _, ppair := range all_blank_points_count_pair {
 		pt, count := ppair.Key, ppair.Value
-		
+        if has_good_point {
+            break
+        }
+        chan_bots_limit <- struct{}{}
+
 		worker_bot := chess.Bot{}
 		worker_bot.Board_loads(board_block)
 		chan_bots <- &worker_bot
@@ -120,6 +134,10 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
 		work_clear.Add(1)
 		go func() {
 			defer work_clear.Done()
+            defer func() {
+                <-chan_bots_limit
+            }()
+
 			is_bad := false
 			for level_bad:=1; level_bad<max_level_bad; level_bad++ {
 				if worker_bot.Is_a_bad_choice(pt, worker_bot.My_side, worker_bot.Your_side, level_bad) {
@@ -138,25 +156,18 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
 				if count < 3 {
 					return
 				}
-				for level_good:=1; level_good<max_level_good; level_good++ {		
+				for level_good:=1; level_good<max_level_good; level_good++ {
 					if worker_bot.Is_a_good_choice(pt, worker_bot.My_side, worker_bot.Your_side, level_good) {
 						chess.Chess_log(fmt.Sprintf("%s GOOD at: %s", chess.ID_TO_NOTE[worker_bot.My_side],
 							chess.Get_label_of_point(pt)), "INFO")
 						chan_good_points <- pt
-						return 
+						return
 					}
 				}
 			}
 		}()
     }
 	close(chan_bots)
-	// manager
-	go func() {
-		the_good_point, has_good_point = <-chan_good_points
-		for bot := range chan_bots {
-			bot.Started = false
-		}
-	}()
     work_clear.Wait()
 	if has_good_point {
 		return the_good_point
@@ -164,10 +175,10 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
 	close(chan_good_points)
 	close(chan_bad_points)
 	close(chan_not_bad_points)
-    blank_points_not_bad := make(map[chess.Point]int)	
+    blank_points_not_bad := make(map[chess.Point]int)
 	if has_not_bad_point {
 		for ppair := range chan_not_bad_points {
-			pt, count := ppair.Key, ppair.Value			
+			pt, count := ppair.Key, ppair.Value
 			blank_points_not_bad[pt] = count
 		}
 	}
@@ -176,12 +187,12 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
 	chess.Chess_log(fmt.Sprintf("time consume: %.2f", float64(finish_bad_time - start_bad_time)/1000000000), "INFO")
 
 	if len(blank_points_not_bad) > 0 {
-		blank_points_not_bad_pair := chess.Rank_by_point_count(blank_points_not_bad)		
+		blank_points_not_bad_pair := chess.Rank_by_point_count(blank_points_not_bad)
 		// to fix get max
 		top_point := blank_points_not_bad_pair[0]
         chess.Chess_log(fmt.Sprintf("points not bad: %d, max_count: %d", len(blank_points_not_bad), top_point.Value), "INFO")
 
-		candidates := []chess.Point{}		
+		candidates := []chess.Point{}
 		for _, ppair := range blank_points_not_bad_pair {
 			pt, count := ppair.Key, ppair.Value
 			if count == top_point.Value {
@@ -203,7 +214,7 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
 				pt, count := ppair.Key, ppair.Value
 				if count > max_deep_bad_point_count {
 					max_deep_bad_point_pt = pt
-					max_deep_bad_point_count = count				
+					max_deep_bad_point_count = count
 				}
 			}
 		}

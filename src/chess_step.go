@@ -28,7 +28,7 @@ func main() {
 
     board_block := ""
 	bot := chess.Bot{}
-	
+
     board_block = `\
    - - - - - - - - - - - - - - -
 15|. . . . . . . . . . . . . . .|
@@ -48,7 +48,7 @@ func main() {
  1|. . . . . . . . . . . . . . .|
    - - - - - - - - - - - - - - -
    A B C D E F G H I J K L M N O`
-	
+
     board_block = `   - - - - - - - - - - - - - - -
 15|. . . . . . . . . . . . . . .|
 14|. . . . . . . . . . . . . . .|
@@ -72,8 +72,8 @@ func main() {
     bot.Board_loads(board_block)
     bot.Board_dumps()
 
-	max_level_good := 4
-	max_level_bad := 4
+	max_level_good := 3
+	max_level_bad := 3
     pt := chessbot.Strategy6(&bot, 0, true,
 		max_level_good,
 		max_level_bad)
