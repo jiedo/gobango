@@ -237,19 +237,19 @@ func (self *Bot) Notes_dumps() {
 
 func (self *Bot) Board_string_block() string{
 	var board_block_lines []string
-	
+
     board_separate_line := strings.Repeat("- ", WIDTH)
 	board_block_lines = append(board_block_lines, "   " + board_separate_line)
-	
+
     for i:=HEIGHT; i>0; i-- {
         var tmp_string []string
         for _, note_info := range self.Board[i-1] {
             tmp_string = append(tmp_string, ID_TO_NOTE[note_info])
         }
-		board_block_lines = append(board_block_lines, fmt.Sprintf("%2d|%s|", i, strings.Join(tmp_string, " ")))		
+		board_block_lines = append(board_block_lines, fmt.Sprintf("%2d|%s|", i, strings.Join(tmp_string, " ")))
     }
-	board_block_lines = append(board_block_lines, "   " + board_separate_line)	
-	
+	board_block_lines = append(board_block_lines, "   " + board_separate_line)
+
     var tmp_labels []string
     for i:=0; i<WIDTH; i++ {
         tmp_labels = append(tmp_labels, idtoa(i))
@@ -289,7 +289,7 @@ func (self *Bot) Board_loads(board_block string) (err error){
     }
 
     self.Init_data()
-    self.Started = true	
+    self.Started = true
     Chess_log("load board start.", "DEBUG")
 
     count_balance := 0
@@ -413,7 +413,7 @@ func (self *Bot) Get_point_of_chessman(get_side GoSide) (pt Point, err error) {
         fmt.Fprintln(os.Stderr, "error:", err)
         os.Exit(1)
     }
-	
+
     if line == "START" {
         if !self.Started {
             self.Started = true
@@ -559,7 +559,7 @@ func (self *Bot) detect_positions_around_point(test_pt Point, test_side GoSide) 
 
 
 func (self *Bot) callback_begin_winner(where Direction) {
-	self.win_points_num = 0	
+	self.win_points_num = 0
     self.win_points[self.win_points_num] = self.center_point
     self.win_points_num++
 }
@@ -842,6 +842,13 @@ func (self *Bot) Get_score_of_blanks_for_side(test_side GoSide, is_dup_enforce b
 
 
 func (self *Bot) Is_a_good_choice(choice_pt Point, my_side GoSide, your_side GoSide, max_level int) bool{
+    Chess_log(fmt.Sprintf("%s TEST GOOD CHOICE[%d]: %s", ID_TO_NOTE[my_side], max_level,
+        Get_label_of_point(choice_pt)), "DEBUG")
+
+    if self.Win_test(choice_pt, my_side) {
+        return true
+    }
+
     // todo: 层序遍历, 最高得分先检查
     if  !self.Started || max_level == 0 {
         return false
@@ -849,44 +856,34 @@ func (self *Bot) Is_a_good_choice(choice_pt Point, my_side GoSide, your_side GoS
 
     self.set_board_at_point(choice_pt, my_side)
     self.update_put_around_point(choice_pt, my_side)
-    Chess_log(fmt.Sprintf("%s TEST GOOD CHOICE[%d]: %s", ID_TO_NOTE[my_side], max_level,
-        Get_label_of_point(choice_pt)), "DEBUG")
+    self.Notes = append(self.Notes, Get_label_of_point(choice_pt))
+    defer func(){
+        self.Notes = self.Notes[:len(self.Notes)-1]
+        self.update_remove_around_point(choice_pt)
+        self.set_board_at_point(choice_pt, BLANK_ID)
+    }()
 
     is_dup_enforce := true
     all_my_blank_points_count_pair := self.Get_score_of_blanks_for_side(my_side, is_dup_enforce)
-    count_win_point := 0
-    for _, ppair := range all_my_blank_points_count_pair {
-		my_pt, count := ppair.Key, ppair.Value		
-        // 先扫一遍有没有多处直接胜利的, count<4的点不可能胜利
-        if count < 4 {
-            continue
-        }
-        if self.Win_test(my_pt, my_side) {
-            count_win_point += 1
-            if count_win_point > 1 {
-                self.update_remove_around_point(choice_pt)
-                self.set_board_at_point(choice_pt, BLANK_ID)
-                return true
-            }
-        }
-    }
+
     tested_not_good_pt := map[Point]bool{}
     for _, ppair := range all_my_blank_points_count_pair {
-		my_pt, count := ppair.Key, ppair.Value		
+		my_pt, count := ppair.Key, ppair.Value
         if count < 1 {
             continue
         }
 		tested_not_good_pt[my_pt] = true
         if is_bad := self.Is_a_bad_choice(my_pt, your_side, my_side, max_level); !is_bad {
-            self.update_remove_around_point(choice_pt)
-            self.set_board_at_point(choice_pt, BLANK_ID)
+            Chess_log(fmt.Sprintf("%s GET BAD CHOICE[%d]: %s",
+                ID_TO_NOTE[your_side], max_level,
+                Get_label_of_point(my_pt)), "DEBUG")
             return false
         }
     }
     is_dup_enforce = true
     all_your_blank_points_count_pair := self.Get_score_of_blanks_for_side(your_side, is_dup_enforce)
     for _, ppair := range all_your_blank_points_count_pair {
-		your_pt, count := ppair.Key, ppair.Value		
+		your_pt, count := ppair.Key, ppair.Value
         if count < 1 {
             continue
         }
@@ -895,80 +892,73 @@ func (self *Bot) Is_a_good_choice(choice_pt Point, my_side GoSide, your_side GoS
         }
         if is_bad := self.Is_a_bad_choice(your_pt, your_side, my_side, max_level); !is_bad {
             Chess_log(fmt.Sprintf("%s GET BAD CHOICE[%d]: %s",
-                ID_TO_NOTE[your_side], max_level-1,
+                ID_TO_NOTE[your_side], max_level,
                 Get_label_of_point(your_pt)), "DEBUG")
-
-            self.update_remove_around_point(choice_pt)
-            self.set_board_at_point(choice_pt, BLANK_ID)
             return false
         }
     }
-    self.update_remove_around_point(choice_pt)
-    self.set_board_at_point(choice_pt, BLANK_ID)
     return true
 }
 
 
 func (self *Bot) Is_a_bad_choice(choice_pt Point, my_side GoSide, your_side GoSide, max_level int) bool{
+    Chess_log(fmt.Sprintf("%s TEST BAD CHOICE[%d]: %s", ID_TO_NOTE[my_side], max_level,
+        Get_label_of_point(choice_pt)), "DEBUG")
+
     // todo: 层序遍历, 最高得分先检查
     if !self.Started || max_level == 0 {
         return false
     }
 
+    if self.Win_test(choice_pt, my_side) {
+        return false
+    }
+
     self.set_board_at_point(choice_pt, my_side)
     self.update_put_around_point(choice_pt, my_side)
-    Chess_log(fmt.Sprintf("%s TEST BAD CHOICE[%d]: %s", ID_TO_NOTE[my_side], max_level,
-        Get_label_of_point(choice_pt)), "DEBUG")
+    self.Notes = append(self.Notes, Get_label_of_point(choice_pt))
+    defer func(){
+        self.Notes = self.Notes[:len(self.Notes)-1]
+        self.update_remove_around_point(choice_pt)
+        self.set_board_at_point(choice_pt, BLANK_ID)
+    }()
 
     is_dup_enforce := true
     all_your_blank_points_count_pair := self.Get_score_of_blanks_for_side(your_side, is_dup_enforce)
     for _, ppair := range all_your_blank_points_count_pair {
-		your_pt, count := ppair.Key, ppair.Value		
+		your_pt, count := ppair.Key, ppair.Value
         // 先扫一遍有没有直接胜利的, count<4的点不可能胜利
         if count >= 4 {
             if self.Win_test(your_pt, your_side) {
-                self.update_remove_around_point(choice_pt)
-                self.set_board_at_point(choice_pt, BLANK_ID)
                 return true
             }
         }
     }
-
     for _, ppair := range all_your_blank_points_count_pair {
-		your_pt, count := ppair.Key, ppair.Value		
+		your_pt, count := ppair.Key, ppair.Value
         if count > 2 {
             // tofix: 不应该忽视count==1的点, 但为了减少计算
             if self.Is_a_good_choice(your_pt, your_side, my_side, max_level-1) {
                 Chess_log(fmt.Sprintf("%s GET GOOD CHOICE[%d]: %s",
                     ID_TO_NOTE[your_side], max_level-1,
                     Get_label_of_point(your_pt)), "DEBUG")
-
-                self.update_remove_around_point(choice_pt)
-                self.set_board_at_point(choice_pt, BLANK_ID)
                 return true
             }
         }
     }
-
     is_dup_enforce = true
     all_my_blank_points_count_pair := self.Get_score_of_blanks_for_side(my_side, is_dup_enforce)
     for _, ppair := range all_my_blank_points_count_pair {
-		my_pt, count := ppair.Key, ppair.Value		
+		my_pt, count := ppair.Key, ppair.Value
         if count > 2 {
             // tofix: 不应该忽视count==1的点, 但为了减少计算
             if self.Is_a_good_choice(my_pt, your_side, my_side, max_level-1) {
                 Chess_log(fmt.Sprintf("%s GET GOOD CHOICE[%d]: %s",
                     ID_TO_NOTE[your_side], max_level-1,
                     Get_label_of_point(my_pt)), "DEBUG")
-
-                self.update_remove_around_point(choice_pt)
-                self.set_board_at_point(choice_pt, BLANK_ID)
                 return true
             }
         }
     }
-
-    self.update_remove_around_point(choice_pt)
-    self.set_board_at_point(choice_pt, BLANK_ID)
     return false
 }

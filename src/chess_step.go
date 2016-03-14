@@ -69,11 +69,31 @@ func main() {
    A B C D E F G H I J K L M N O`
 
 
+    board_block = ` - - - - - - - - - - - - - - -
+15|. . . . . . . . . . . . . . .|
+14|. . . . . . . . . . . . . . .|
+13|. . . . . . . . . . . . . . .|
+12|. . . . . . . . . . . . . . .|
+11|. . . . . . . . . . . . . . .|
+10|. . O . . O . . . . . . . . .|
+ 9|. . . * . O . O . . . . . . .|
+ 8|. . O * * * * O . . . . . . .|
+ 7|. . . * . * O . . . . . . . .|
+ 6|. . . O . * * . . . . . . . .|
+ 5|. . . . . * . O . . . . . . .|
+ 4|. . . . * O . . . . . . . . .|
+ 3|. . . . . . . . . . . . . . .|
+ 2|. . . . . . . . . . . . . . .|
+ 1|. . . . . . . . . . . . . . .|
+   - - - - - - - - - - - - - - -
+   A B C D E F G H I J K L M N O`
+
+
     bot.Board_loads(board_block)
     bot.Board_dumps()
 
-	max_level_good := 3
-	max_level_bad := 3
+	max_level_good := 4
+	max_level_bad := 4
     pt := chessbot.Strategy6(&bot, 0, true,
 		max_level_good,
 		max_level_bad)
