@@ -25,8 +25,8 @@ func Strategy(self *chess.Bot) chess.Point{
                          max_level_bad)
     } else {
         // return strategy4(self, 0, true)
-		max_level_good = 4
-		max_level_bad = 4
+		max_level_good = 7
+		max_level_bad = 6
         return Strategy6(self, 0, true,
             max_level_good,
             max_level_bad)
@@ -73,8 +73,8 @@ func Strategy6(self *chess.Bot, defence_level int, is_dup_enforce bool,
     for _, ppair := range all_my_blank_points_count_pair {
 		pt, count := ppair.Key, ppair.Value
 		if count_tmp, ok := all_blank_points_count[pt]; ok {
-			if count_tmp > count {
-				all_blank_points_count[pt] = count_tmp
+			if count > count_tmp {
+				all_blank_points_count[pt] = count
 			}
 		} else {
 			all_blank_points_count[pt] = count
