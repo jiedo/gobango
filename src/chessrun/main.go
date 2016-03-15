@@ -50,7 +50,7 @@ func main() {
             _, err := bot.Get_point_of_chessman(bot.Your_side)
 			if err != nil {
 				chess.Chess_log(fmt.Sprintf("error: %s", err), "INFO")
-				continue
+                return
 			}
 		}
         // 检测对方是否获胜

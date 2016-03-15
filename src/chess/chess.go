@@ -16,8 +16,8 @@ const (
     HEIGHT = 15
     WIN_NUM = 5
 
-    MIN_COUNT_DO_BAD_TEST = 1
-    MIN_COUNT_DO_GOOD_TEST = 1
+    MIN_COUNT_DO_BAD_TEST = 2
+    MIN_COUNT_DO_GOOD_TEST = 2
 )
 
 const (
@@ -136,8 +136,8 @@ var (
         0, 0, 0, 3,
         0, 0, 0, 2,
         0, 0, 0, 3,
-        0, 0, 0, 2,
-        0, 0, 0, 4,}
+        -1, -1, -1, 2-1,        // 到最远的一个无记分
+        -1, -1, -1, 4-1,}
     LEG_TYPE_TO_DOUBLE_ADDITION_COUNT = []int{
         0, 0, 0, 1,
         0, 1, 0, 2,
@@ -147,6 +147,16 @@ var (
         0, 1, 0, 3,
         0, 1, 0, 2,
         0, 1, 0, 4,}
+
+    // 00000, 00001, 00010, 00011,
+    // 00100, 00101, 00110, 00111,
+    // 01000, 01001, 01010, 01011,
+    // 01100, 01101, 01110, 01111,
+
+    // 10000, 10001, 10010, 10011,
+    // 10100, 10101, 10110, 10111,
+    // 11000, 11001, 11010, 11011,
+    // 11100, 11101, 11110, 11111,
 
     G_debug_info bool = false
 )
@@ -464,12 +474,13 @@ func (self *Bot) Get_point_of_chessman(get_side GoSide) (pt Point, err error) {
     }
 
     if line == "START" {
-        if !self.Started {
-            self.Started = true
-            self.swap_user_side()
-            self.Side_this_turn = self.My_side
+        if self.Started {
+            return pt, errors.New("get_point_of_chessman double start.")
         }
-        return pt, errors.New("get_point_of_chessman double start.")
+        self.Started = true
+        self.swap_user_side()
+        self.Side_this_turn = self.My_side
+        return pt, nil
     }
     if !strings.HasPrefix(line, OP_PUT) {
         return pt, errors.New("get_point_of_chessman not put.")
