@@ -15,8 +15,8 @@ import (
 func Strategy(self *chess.Bot) chess.Point{
     // 测试AI
 
-	max_level_good := 3
-	max_level_bad := 3
+	max_level_good := 6
+	max_level_bad := 6
 
     if self.My_side == chess.BLACK_ID {
         // return strategy4(self, 0, true)
@@ -25,7 +25,7 @@ func Strategy(self *chess.Bot) chess.Point{
                          max_level_bad)
     } else {
         // return strategy4(self, 0, true)
-		max_level_good = 7
+		max_level_good = 6
 		max_level_bad = 6
         return Strategy6(self, 0, true,
             max_level_good,

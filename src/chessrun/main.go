@@ -4,7 +4,7 @@ package main
 import (
     "fmt"
     "chess"
-    "chessbot"	
+    "chessbot"
 	"time"
     "os"
 )
@@ -43,13 +43,13 @@ func main() {
     bot.Get_score_of_blanks_for_side(chess.BLACK_ID, true)
     bot.Get_score_of_blanks_for_side(chess.WHITE_ID, true)
     chess.Chess_log("init ok.", "DEBUG")
-	
+
     for {
         // 首先读取对方的落子位置, 并写入棋盘
         for ;bot.Side_this_turn == bot.Your_side; {
             _, err := bot.Get_point_of_chessman(bot.Your_side)
 			if err != nil {
-				chess.Chess_log(fmt.Sprintf("error: %s", err), "INFO")				
+				chess.Chess_log(fmt.Sprintf("error: %s", err), "INFO")
 				continue
 			}
 		}
@@ -61,6 +61,10 @@ func main() {
             bot.Notes_dumps()
             break
         }
+        if len(bot.Notes) >= chess.HEIGHT*chess.WIDTH {
+            break
+        }
+
         // 回调自己的策略
         my_pt := chessbot.Strategy(&bot)
         // 写入棋盘并通知对方
@@ -74,6 +78,9 @@ func main() {
         if bot.Is_winner(bot.My_side) {
             chess.Chess_log(fmt.Sprintf("%s Win.", chess.ID_TO_NOTE[bot.My_side]), "INFO")
             bot.Notes_dumps()
+            break
+        }
+        if len(bot.Notes) >= chess.HEIGHT*chess.WIDTH {
             break
         }
 	}

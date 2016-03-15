@@ -16,8 +16,8 @@ const (
     HEIGHT = 15
     WIN_NUM = 5
 
-    MIN_COUNT_DO_BAD_TEST = 2
-    MIN_COUNT_DO_GOOD_TEST = 2
+    MIN_COUNT_DO_BAD_TEST = 1
+    MIN_COUNT_DO_GOOD_TEST = 1
 )
 
 const (
@@ -229,7 +229,7 @@ type Bot struct {
     Board_leg_type [HEIGHT][WIDTH][2][LEG_INFO_N]int
     direction_legtype_count []int
 
-    Board_blank_count [HEIGHT][WIDTH][2][LEG_INFO_N][4]int
+    Board_blank_count [HEIGHT][WIDTH][2][LEG_INFO_N][WIN_NUM-1]int
     blank_points_count_pair [HEIGHT*WIDTH]Pair
 
     Notes []string
@@ -264,7 +264,7 @@ func (self *Bot) Init_data() {
     for h:=0; h<HEIGHT; h++ {
         for w:=0; w<WIDTH; w++ {
             for i:=0; i<LEG_INFO_N; i++ {
-                for j:=0; j<4; j++ {
+                for j:=0; j<WIN_NUM-1; j++ {
                     self.Board_blank_count[h][w][int(WHITE_ID)][i][j] = 1
                     self.Board_blank_count[h][w][int(BLACK_ID)][i][j] = 1
                 }
