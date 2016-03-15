@@ -153,8 +153,3 @@ chessrun暂时实现为通过stdin/stdout通信. chessrun读取stdin, 得到对�
 * 增加其他棋类规则
 * ~~实现对弈策略~~
 * ~~很容易实现一个chessbot前端, 实现人机对弈.~~
-
-
-
-
-GOPATH=/media/debian/home/jie/astudy/jiedo/code/go/chessbot/:$GOPATH go build chessbot
